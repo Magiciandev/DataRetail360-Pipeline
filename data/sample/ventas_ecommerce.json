@@ -1,0 +1,288 @@
+[
+  {
+    "order_id": "EC-1001",
+    "created_at": "2025-07-19T02:08:09Z",
+    "channel": "E-commerce",
+    "status": "PAID",
+    "customer": {
+      "rut": "31000169-4",
+      "email": "web1@example.com"
+    },
+    "items": [
+      {
+        "sku": "CL-006",
+        "qty": 1,
+        "line_total": 449990
+      }
+    ]
+  },
+  {
+    "order_id": "EC-1002",
+    "created_at": "2025-06-15T10:34:29Z",
+    "channel": "Web",
+    "status": "PAID",
+    "customer": {
+      "rut": "31.000.195-3",
+      "email": "web2@example.com"
+    },
+    "items": [
+      {
+        "sku": "NB-001",
+        "qty": 1,
+        "line_total": 799000
+      },
+      {
+        "sku": "CL-006",
+        "qty": 1,
+        "line_total": 449990
+      }
+    ]
+  },
+  {
+    "order_id": "EC-1003",
+    "created_at": "2025-03-04T11:19:48Z",
+    "channel": "Web",
+    "status": "PAID",
+    "customer": {
+      "rut": "31000130-9",
+      "email": "web3@example.com"
+    },
+    "items": [
+      {
+        "sku": "CL-006",
+        "qty": 1,
+        "line_total": 449990
+      },
+      {
+        "sku": "TV-004",
+        "qty": 2,
+        "line_total": 699980
+      }
+    ]
+  },
+  {
+    "order_id": "EC-1004",
+    "created_at": "2025-06-14T23:10:53Z",
+    "channel": "Web",
+    "status": "RETURNED",
+    "customer": {
+      "rut": "31000052-3",
+      "email": "web4@example.com"
+    },
+    "items": [
+      {
+        "sku": "AU-002",
+        "qty": 1,
+        "line_total": 49990
+      },
+      {
+        "sku": "rf-009",
+        "qty": 1,
+        "line_total": 549990
+      }
+    ]
+  },
+  {
+    "order_id": "EC-1005",
+    "created_at": "2025-06-29T05:03:16Z",
+    "channel": "Web",
+    "status": "PAID",
+    "customer": {
+      "rut": "31000104-K",
+      "email": "web5@example.com"
+    },
+    "items": [
+      {
+        "sku": "CF-005",
+        "qty": 1,
+        "line_total": 59990
+      },
+      {
+        "sku": "CF-005",
+        "qty": 2,
+        "line_total": 119980
+      }
+    ]
+  },
+  {
+    "order_id": "EC-1006",
+    "created_at": "2025-03-23T15:01:47Z",
+    "channel": "E-commerce",
+    "status": "PAID",
+    "customer": {
+      "rut": "31000091-4",
+      "email": "web6@example.com"
+    },
+    "items": [
+      {
+        "sku": " NB-001 ",
+        "qty": 2,
+        "line_total": 1598000
+      },
+      {
+        "sku": "NB-002",
+        "qty": 1,
+        "line_total": 1199000
+      },
+      {
+        "sku": "AS-003",
+        "qty": 1,
+        "line_total": 129990
+      }
+    ]
+  },
+  {
+    "order_id": "EC-1007",
+    "created_at": "2025-04-04T15:42:07Z",
+    "channel": "E-commerce",
+    "status": "PAID",
+    "customer": {
+      "rut": "31.000.234-8",
+      "email": "web7@example.com"
+    },
+    "items": [
+      {
+        "sku": "AS-003",
+        "qty": 2,
+        "line_total": 259980
+      },
+      {
+        "sku": "CF-005",
+        "qty": 1,
+        "line_total": 59990
+      },
+      {
+        "sku": "NB-002",
+        "qty": 1,
+        "line_total": 1199000
+      }
+    ]
+  },
+  {
+    "order_id": "EC-1008",
+    "created_at": "2025-03-09T09:36:43Z",
+    "channel": "ecommerce",
+    "status": "CANCELLED",
+    "customer": {
+      "rut": "31.000.273-9",
+      "email": "web8@example.com"
+    },
+    "items": [
+      {
+        "sku": "cl-006",
+        "qty": 1,
+        "line_total": 449990
+      },
+      {
+        "sku": "AS-003",
+        "qty": 1,
+        "line_total": 129990
+      }
+    ]
+  },
+  {
+    "order_id": "EC-1009",
+    "created_at": "2025-04-02T18:50:02Z",
+    "channel": "Web",
+    "status": "PAID",
+    "customer": {
+      "rut": "31.000.195-3",
+      "email": "web9@example.com"
+    },
+    "items": [
+      {
+        "sku": "TC-008",
+        "qty": 2,
+        "line_total": 49980
+      },
+      {
+        "sku": "nb-002",
+        "qty": 2,
+        "line_total": 2398000
+      }
+    ]
+  },
+  {
+    "order_id": "EC-1010",
+    "created_at": "2025-03-30T13:23:40Z",
+    "channel": "Web",
+    "status": "PAID",
+    "customer": {
+      "rut": "31000182-1",
+      "email": "web10@example.com"
+    },
+    "items": [
+      {
+        "sku": " AU-002 ",
+        "qty": 2,
+        "line_total": 99980
+      },
+      {
+        "sku": "TC-008",
+        "qty": 2,
+        "line_total": 49980
+      }
+    ]
+  },
+  {
+    "order_id": "EC-1011",
+    "created_at": "2025-06-22T23:37:17Z",
+    "channel": "Web",
+    "status": "PAID",
+    "customer": {
+      "rut": "31000130-9",
+      "email": "web11@example.com"
+    },
+    "items": [
+      {
+        "sku": "AS-003",
+        "qty": 1,
+        "line_total": 129990
+      },
+      {
+        "sku": "MS-007",
+        "qty": 1,
+        "line_total": 15990
+      }
+    ]
+  },
+  {
+    "order_id": "EC-1012",
+    "created_at": "2025-03-10T15:54:20Z",
+    "channel": "ecommerce",
+    "status": "PAID",
+    "customer": {
+      "rut": "31000130-9",
+      "email": "web12@example.com"
+    },
+    "items": [
+      {
+        "sku": "MS-007",
+        "qty": 1,
+        "line_total": 15990
+      }
+    ]
+  },
+  {
+    "order_id": "EC-1002",
+    "created_at": "2025-06-15T10:34:29Z",
+    "channel": "Web",
+    "status": "PAID",
+    "customer": {
+      "rut": "31.000.195-3",
+      "email": "web2@example.com"
+    },
+    "items": [
+      {
+        "sku": "NB-001",
+        "qty": 1,
+        "line_total": 799000
+      },
+      {
+        "sku": "CL-006",
+        "qty": 1,
+        "line_total": 449990
+      }
+    ]
+  }
+]

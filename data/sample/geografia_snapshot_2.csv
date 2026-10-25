@@ -1,0 +1,15 @@
+codigo_comuna,comuna,provincia,region,pais,zona_comercial,latitud,longitud
+13101,Santiago,Santiago,Metropolitana,Chile,Centro,-33.4489,-70.6693
+13123,Providencia,Santiago,Metropolitana,Chile,Centro,-33.4314,-70.6093
+13114,Las Condes,Santiago,Metropolitana,Chile,Centro,-33.4081,-70.5675
+13119,Maipú,Santiago,Metropolitana,Chile,Centro,-33.5106,-70.7575
+13201,Puente Alto,Cordillera,Metropolitana,Chile,Centro,-33.6117,-70.5758
+5101,Valparaíso,Valparaíso,Valparaíso,Chile,Centro,-33.0472,-71.6127
+5109,Viña del Mar,Valparaíso,Valparaíso,Chile,Centro,-33.0245,-71.5518
+8101,Concepción,Concepción,Biobío,Chile,Sur,-36.827,-73.0503
+8110,Talcahuano,Concepción,Biobío,Chile,Sur,-36.7249,-73.1168
+16101,Chillán,Diguillín,Ñuble,Chile,Sur,-36.6066,-72.1034
+2101,Antofagasta,Antofagasta,Antofagasta,Chile,Norte,-23.6509,-70.3975
+9101,Temuco,Cautín,Araucanía,Chile,Sur,-38.7359,-72.5904
+10101,Puerto Montt,Llanquihue,Los Lagos,Chile,Sur,-41.4693,-72.9424
+4101,La Serena,Elqui,Coquimbo,Chile,Norte,-29.9027,-71.2519
