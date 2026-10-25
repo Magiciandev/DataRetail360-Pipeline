@@ -1,0 +1,22 @@
+# Secretos
+.env
+
+# Datos locales y capas generadas (los datos de ejemplo sintéticos SÍ se versionan)
+data/*
+!data/sample/
+data/sample/*.db
+data/lake/
+
+# Registros y notebooks ejecutados
+logs/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Bases locales
+*.db
+*.sqlite

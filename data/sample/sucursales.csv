@@ -1,0 +1,8 @@
+id_sucursal,nombre_sucursal,tipo_tienda,codigo_comuna
+S00,Centro de Distribución Online,Bodega/Online,13119
+S01,Providencia,Mall,13123
+S02,Maipú,Tienda calle,13119
+S03,Concepción,Mall,8101
+S04,Antofagasta,Tienda calle,2101
+S05,Viña del Mar,Mall,5109
+S06,Temuco,Tienda calle,9101

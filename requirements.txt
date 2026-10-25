@@ -1,0 +1,13 @@
+pandas>=2.1
+sqlalchemy>=2.0
+pyarrow>=14
+python-dotenv>=1.0
+# SQL Server (solo si DB_ENGINE=sqlserver; requiere además el "ODBC Driver 17/18 for SQL Server")
+pyodbc>=5.0
+# Ejecutar los notebooks desde run_pipeline.py
+nbformat>=5.9
+nbclient>=0.9
+ipykernel>=6.29
+jupyter>=1.0
+# Pruebas
+pytest>=8.0

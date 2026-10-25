@@ -1,0 +1,12 @@
+sku,nombre_producto,marca,categoria,subcategoria,linea_negocio
+NB-001,"Notebook 15""",Acme,Tecnología,Computación,Tecnología
+NB-002,"Notebook Pro 14""",Acme,Tecnología,Computación,Tecnología
+AU-002,Audífonos Bluetooth,Sonora,Audio,Audífonos,Tecnología
+AS-003,Aspiradora Robot,HogarPlus,Hogar,Electrohogar,Hogar
+TV-004,"Televisor 50""",Visionix,Tecnología,Imagen,Tecnología
+CF-005,Cafetera Espresso,Cafetto,Hogar,Cocina,Hogar
+CL-006,Smartphone 128GB,Movix,Tecnología,Telefonía,Telefonía
+MS-007,Mouse Inalámbrico,Clickr,Accesorios,Periféricos,Tecnología
+TC-008,Teclado Mecánico,Clickr,Accesorios,Periféricos,Tecnología
+RF-009,Refrigerador No Frost,FrioMax,Hogar,Línea blanca,Hogar
+MN-010,"Monitor 27""",Visionix,Tecnología,Imagen,Tecnología
