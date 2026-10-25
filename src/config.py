@@ -19,7 +19,7 @@ except ImportError:  # pragma: no cover
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 if load_dotenv:
-    load_dotenv(BASE_DIR / ".env")
+    load_dotenv(BASE_DIR / ".env", override=True)
 
 # --- Convenciones compartidas por los 3 notebooks (ver docs/acuerdos_tecnicos.md)
 FECHA_INICIO_DEFECTO = date(1900, 1, 1)   # valido_desde de la primera versión de cada registro
