@@ -1,0 +1,6 @@
+# Storytelling de la Experiencia 3 (Plotly en el notebook y app Streamlit opcional).
+# Instalar con:  pip install -r requirements-storytelling.txt
+plotly>=5.18
+streamlit>=1.30
+# Solo para exportar los gráficos como PNG (opcional; el HTML no lo necesita)
+kaleido>=1.0

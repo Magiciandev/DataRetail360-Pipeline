@@ -49,3 +49,10 @@ def test_separar_rechazos_conserva_origen():
     ok, rech = q.separar_rechazos(df, df["x"] < 0, "monto_negativo")
     assert len(ok) == 2 and len(rech) == 1
     assert rech.iloc[0]["fila_origen"] == 3 and rech.iloc[0]["motivo_rechazo"] == "monto_negativo"
+
+
+def test_canal_canonico_homologa_y_no_adivina():
+    r = q.canal_canonico(pd.Series(["Tienda física", "TIENDA FISICA", " tienda física ", "E-commerce", "ecommerce", "Web", "radio", None]))
+    assert r.iloc[:3].tolist() == ["Tienda física"] * 3
+    assert r.iloc[3:6].tolist() == ["E-commerce"] * 3
+    assert r.iloc[6:].isna().all()          # lo desconocido NO se asigna a un canal al azar

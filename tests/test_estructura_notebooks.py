@@ -9,8 +9,8 @@ NOTEBOOKS = sorted((Path(__file__).resolve().parent.parent / "notebooks").glob("
 SECCIONES = ["Extract", "Transform", "Load", "Validación", "Evidencia"]
 
 
-def test_hay_cuatro_notebooks():
-    assert len(NOTEBOOKS) == 4
+def test_hay_seis_notebooks():
+    assert len(NOTEBOOKS) == 6
 
 
 @pytest.mark.parametrize("ruta", NOTEBOOKS, ids=lambda p: p.name)

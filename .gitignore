@@ -20,3 +20,6 @@ __pycache__/
 # Bases locales
 *.db
 *.sqlite
+
+# Gráficos exportados del notebook de storytelling
+storytelling/salida/

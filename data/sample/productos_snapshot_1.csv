@@ -1,13 +1,13 @@
-sku,nombre_producto,marca,categoria,subcategoria,linea_negocio
-NB-001,"Notebook 15""",Acme,Tecnología,Computación,Tecnología
-NB-002,"Notebook Pro 14""",Acme,Tecnología,Computación,Tecnología
-AU-002,Audífonos Bluetooth,Sonora,Accesorios,Audio,Tecnología
-AS-003,Aspiradora Robot,HogarPlus,Hogar,Electrohogar,Hogar
- tv-004 ,"Televisor 50""",Visionix,Tecnología,Imagen,Tecnología
-CF-005,Cafetera Espresso,Cafetto,Hogar,Cocina,Hogar
-CL-006,Smartphone 128GB,Movix,Tecnología,Telefonía,Tecnología
-MS-007,Mouse Inalámbrico,Clickr,Accesorios,Periféricos,Tecnología
-TC-008,Teclado Mecánico,Clickr,Accesorios,Periféricos,Tecnología
-RF-009,Refrigerador No Frost,FrioMax,Hogar,Línea blanca,Hogar
-cf-005,Cafetera Espresso,Cafetto,Hogar,Cocina,Hogar
-,Producto sin SKU,Acme,Tecnología,,Tecnología
+sku,nombre_producto,marca,categoria,subcategoria,linea_negocio,costo_unitario
+NB-001,"Notebook 15""",Acme,Tecnología,Computación,Tecnología,523714
+NB-002,"Notebook Pro 14""",Acme,Tecnología,Computación,Tecnología,785899
+AU-002,Audífonos Bluetooth,Sonora,Accesorios,Audio,Tecnología,23105
+AS-003,Aspiradora Robot,HogarPlus,Hogar,Electrohogar,Hogar,76465
+ tv-004 ,"Televisor 50""",Visionix,Tecnología,Imagen,Tecnología,229405
+CF-005,Cafetera Espresso,Cafetto,Hogar,Cocina,Hogar,35288
+CL-006,Smartphone 128GB,Movix,Tecnología,Telefonía,Tecnología,294951
+MS-007,Mouse Inalámbrico,Clickr,Accesorios,Periféricos,Tecnología,7390
+TC-008,Teclado Mecánico,Clickr,Accesorios,Periféricos,Tecnología,11550
+RF-009,Refrigerador No Frost,FrioMax,Hogar,Línea blanca,Hogar,323524
+cf-005,Cafetera Espresso,Cafetto,Hogar,Cocina,Hogar,35288
+,Producto sin SKU,Acme,Tecnología,,Tecnología,450000

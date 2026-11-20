@@ -1,0 +1,7 @@
+codigo_campana,nombre_campana,tipo_campana,objetivo,fecha_inicio,fecha_fin,presupuesto
+CMP-001,Accesorios de Otoño,Email,Venta cruzada de accesorios,2025-03-24,2025-03-30,640000
+CMP-002,Hogar Fest,Email + SMS,Impulsar la categoría Hogar,2025-05-12,2025-05-18,2000000
+CMP-003,Gamer Junio,SMS,Periféricos y monitores,2025-06-16,2025-06-22,1250000
+CMP-004,Semana Tech,Email,Liquidar inventario de Tecnología,2025-08-11,2025-08-17,3500000
+CMP-002,Hogar Fest,Email + SMS,Impulsar la categoría Hogar,2025-05-12,2025-05-18,2000000
+CMP-900,Campaña de prueba,Email,Prueba,2025-04-01,2025-04-02,-1

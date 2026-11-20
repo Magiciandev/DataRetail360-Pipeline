@@ -26,6 +26,19 @@ CREATE TABLE auditoria_rechazos (
 	CONSTRAINT uq_rechazo UNIQUE (proceso, origen_archivo, fila_origen, motivo_rechazo)
 );
 
+CREATE TABLE dim_campana (
+	campana_key INTEGER NOT NULL, 
+	codigo_campana VARCHAR(20) NOT NULL, 
+	nombre_campana VARCHAR(100) NULL, 
+	tipo_campana VARCHAR(30) NULL, 
+	objetivo VARCHAR(100) NULL, 
+	fecha_inicio DATE NULL, 
+	fecha_fin DATE NULL, 
+	presupuesto NUMERIC(14, 2) NULL, 
+	PRIMARY KEY (campana_key), 
+	UNIQUE (codigo_campana)
+);
+
 CREATE TABLE dim_canal (
 	canal_key INTEGER NOT NULL, 
 	canal VARCHAR(40) NOT NULL, 
@@ -44,6 +57,8 @@ CREATE TABLE dim_fecha (
 	anio INTEGER NULL, 
 	dia_semana VARCHAR(15) NULL, 
 	es_fin_de_semana INTEGER NULL, 
+	anio_mes VARCHAR(7) NULL, 
+	anio_semana VARCHAR(8) NULL, 
 	PRIMARY KEY (fecha_key), 
 	UNIQUE (fecha)
 );
@@ -75,6 +90,7 @@ CREATE TABLE dim_producto (
 	categoria VARCHAR(60) NULL, 
 	subcategoria VARCHAR(60) NULL, 
 	linea_negocio VARCHAR(60) NULL, 
+	costo_unitario NUMERIC(14, 2) NULL, 
 	valido_desde DATE NOT NULL, 
 	valido_hasta DATE NOT NULL, 
 	es_actual INTEGER NOT NULL, 
@@ -113,6 +129,39 @@ CREATE TABLE dim_sucursal (
 	FOREIGN KEY(geografia_key) REFERENCES dim_geografia (geografia_key)
 );
 
+CREATE TABLE fact_campanas (
+	campana_key INTEGER NOT NULL, 
+	cliente_key INTEGER NOT NULL, 
+	producto_key INTEGER NOT NULL, 
+	canal_key INTEGER NOT NULL, 
+	fecha_key INTEGER NOT NULL, 
+	contactado INTEGER NOT NULL, 
+	respondio INTEGER NOT NULL, 
+	compro INTEGER NOT NULL, 
+	monto_venta_atribuida NUMERIC(14, 2) NULL, 
+	costo_asignado NUMERIC(14, 2) NULL, 
+	PRIMARY KEY (campana_key, cliente_key, producto_key, canal_key, fecha_key), 
+	FOREIGN KEY(campana_key) REFERENCES dim_campana (campana_key), 
+	FOREIGN KEY(cliente_key) REFERENCES dim_cliente (cliente_key), 
+	FOREIGN KEY(producto_key) REFERENCES dim_producto (producto_key), 
+	FOREIGN KEY(canal_key) REFERENCES dim_canal (canal_key), 
+	FOREIGN KEY(fecha_key) REFERENCES dim_fecha (fecha_key)
+);
+
+CREATE TABLE fact_inventario (
+	fecha_key INTEGER NOT NULL, 
+	producto_key INTEGER NOT NULL, 
+	sucursal_key INTEGER NOT NULL, 
+	stock_unidades INTEGER NOT NULL, 
+	valor_stock NUMERIC(14, 2) NULL, 
+	unidades_merma INTEGER NOT NULL, 
+	quiebre INTEGER NOT NULL, 
+	PRIMARY KEY (fecha_key, producto_key, sucursal_key), 
+	FOREIGN KEY(fecha_key) REFERENCES dim_fecha (fecha_key), 
+	FOREIGN KEY(producto_key) REFERENCES dim_producto (producto_key), 
+	FOREIGN KEY(sucursal_key) REFERENCES dim_sucursal (sucursal_key)
+);
+
 CREATE TABLE fact_ventas (
 	id_transaccion VARCHAR(40) NOT NULL, 
 	linea INTEGER NOT NULL, 
@@ -125,6 +174,8 @@ CREATE TABLE fact_ventas (
 	monto_neto NUMERIC(14, 2) NULL, 
 	monto_iva NUMERIC(14, 2) NULL, 
 	monto_total NUMERIC(14, 2) NULL, 
+	costo_venta NUMERIC(14, 2) NULL, 
+	margen_bruto NUMERIC(14, 2) NULL, 
 	devolucion INTEGER NOT NULL, 
 	PRIMARY KEY (id_transaccion, linea), 
 	FOREIGN KEY(fecha_key) REFERENCES dim_fecha (fecha_key), 

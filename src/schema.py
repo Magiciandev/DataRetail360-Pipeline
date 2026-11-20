@@ -1,4 +1,4 @@
-"""Esquema del Data Warehouse DataRetail 360 (esquema estrella).
+"""Esquema del Data Warehouse DataRetail 360 (constelación de 3 hechos: ventas, inventario, campañas).
 
 Es la ÚNICA definición de las tablas: sirve para SQLite y SQL Server.
 Para obtener el DDL de SQL Server (y abrirlo en SSMS):
@@ -45,6 +45,8 @@ dim_fecha = Table(
     Column("dia", Integer), Column("mes", Integer), Column("nombre_mes", String(20)),
     Column("trimestre", Integer), Column("anio", Integer),
     Column("dia_semana", String(15)), Column("es_fin_de_semana", Integer),
+    Column("anio_mes", String(7)),        # '2025-03' (ordena bien en cualquier herramienta BI)
+    Column("anio_semana", String(8)),     # '2025-W10' (semana ISO; K4 se mide por semana)
 )
 
 dim_geografia = Table(
@@ -75,6 +77,16 @@ dim_canal = Table(
     Column("tipo_canal", String(20)),
 )
 
+dim_campana = Table(
+    "dim_campana", metadata,
+    _pk("campana_key"),
+    Column("codigo_campana", String(20), nullable=False, unique=True),   # clave natural
+    Column("nombre_campana", String(100)), Column("tipo_campana", String(30)),
+    Column("objetivo", String(100)),
+    Column("fecha_inicio", Date), Column("fecha_fin", Date),
+    Column("presupuesto", Numeric(14, 2, asdecimal=False)),              # CLP: inversión de TODA la campaña
+)
+
 dim_producto = Table(
     "dim_producto", metadata,
     _pk("producto_key"),
@@ -82,6 +94,7 @@ dim_producto = Table(
     Column("nombre_producto", String(150)), Column("marca", String(60)),
     Column("categoria", String(60)), Column("subcategoria", String(60)),
     Column("linea_negocio", String(60)),
+    Column("costo_unitario", Numeric(14, 2, asdecimal=False)),   # CLP neto (sin IVA), SCD1; viene del ERP
     *_columnas_scd2(),
     UniqueConstraint("sku", "valido_desde", name="uq_producto_version"),
 )
@@ -114,7 +127,34 @@ fact_ventas = Table(
     Column("monto_neto", Numeric(14, 2, asdecimal=False)),   # sin IVA
     Column("monto_iva", Numeric(14, 2, asdecimal=False)),
     Column("monto_total", Numeric(14, 2, asdecimal=False)),  # con IVA
+    Column("costo_venta", Numeric(14, 2, asdecimal=False)),  # cantidad x costo unitario neto (NULL si no hay costo)
+    Column("margen_bruto", Numeric(14, 2, asdecimal=False)), # monto_neto - costo_venta
     Column("devolucion", Integer, nullable=False),           # 0 = venta, 1 = devolución
+)
+
+fact_inventario = Table(
+    "fact_inventario", metadata,
+    Column("fecha_key", Integer, ForeignKey("dim_fecha.fecha_key"), primary_key=True, autoincrement=False),
+    Column("producto_key", Integer, ForeignKey("dim_producto.producto_key"), primary_key=True, autoincrement=False),
+    Column("sucursal_key", Integer, ForeignKey("dim_sucursal.sucursal_key"), primary_key=True, autoincrement=False),
+    Column("stock_unidades", Integer, nullable=False),       # foto al cierre del día (semiaditiva: no se suma en el tiempo)
+    Column("valor_stock", Numeric(14, 2, asdecimal=False)),  # stock_unidades x costo unitario neto (semiaditiva)
+    Column("unidades_merma", Integer, nullable=False),
+    Column("quiebre", Integer, nullable=False),              # 1 si stock_unidades = 0
+)
+
+fact_campanas = Table(
+    "fact_campanas", metadata,
+    Column("campana_key", Integer, ForeignKey("dim_campana.campana_key"), primary_key=True, autoincrement=False),
+    Column("cliente_key", Integer, ForeignKey("dim_cliente.cliente_key"), primary_key=True, autoincrement=False),
+    Column("producto_key", Integer, ForeignKey("dim_producto.producto_key"), primary_key=True, autoincrement=False),
+    Column("canal_key", Integer, ForeignKey("dim_canal.canal_key"), primary_key=True, autoincrement=False),
+    Column("fecha_key", Integer, ForeignKey("dim_fecha.fecha_key"), primary_key=True, autoincrement=False),  # fecha de envío
+    Column("contactado", Integer, nullable=False),           # siempre 1 (permite sumar contactos)
+    Column("respondio", Integer, nullable=False),            # 0/1, lo informa Marketing
+    Column("compro", Integer, nullable=False),               # 0/1, derivado de fact_ventas con la regla de atribución
+    Column("monto_venta_atribuida", Numeric(14, 2, asdecimal=False)),   # neto sin IVA
+    Column("costo_asignado", Numeric(14, 2, asdecimal=False)),          # presupuesto de la campaña / contactados
 )
 
 # ------------------------------------------------------------------------ Auditoría
@@ -162,9 +202,14 @@ MIEMBROS_DESCONOCIDOS: dict[str, dict] = {
         "geografia_key": CLAVE_DESCONOCIDA,
     },
     "dim_canal": {"canal_key": CLAVE_DESCONOCIDA, "canal": _NI, "tipo_canal": _NI},
+    "dim_campana": {
+        "campana_key": CLAVE_DESCONOCIDA, "codigo_campana": "-1", "nombre_campana": "CAMPAÑA NO INFORMADA",
+        "tipo_campana": _NI, "objetivo": _NI, "fecha_inicio": None, "fecha_fin": None, "presupuesto": None,
+    },
     "dim_producto": {
         "producto_key": CLAVE_DESCONOCIDA, "sku": "-1", "nombre_producto": "PRODUCTO NO INFORMADO",
-        "marca": _NI, "categoria": _NI, "subcategoria": _NI, "linea_negocio": _NI, **_VIGENCIA,
+        "marca": _NI, "categoria": _NI, "subcategoria": _NI, "linea_negocio": _NI,
+        "costo_unitario": None, **_VIGENCIA,
     },
     "dim_cliente": {
         "cliente_key": CLAVE_DESCONOCIDA, "rut_anonimizado": "-1", "tramo_etario": _NI,
@@ -173,7 +218,7 @@ MIEMBROS_DESCONOCIDOS: dict[str, dict] = {
     },
 }
 # Orden respetando las claves foráneas
-ORDEN_CREACION = ["dim_geografia", "dim_sucursal", "dim_canal", "dim_producto", "dim_cliente"]
+ORDEN_CREACION = ["dim_geografia", "dim_sucursal", "dim_canal", "dim_campana", "dim_producto", "dim_cliente"]
 
 
 def crear_esquema(engine: Engine) -> None:

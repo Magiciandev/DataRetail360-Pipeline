@@ -25,10 +25,14 @@ y resuelve el problema central del caso: cifras distintas entre áreas, datos si
 - **Fuentes:** CSV (POS, maestros) y JSON anidado (e-commerce). Ver sección 7.
 - **Transformaciones:** deduplicación, homologación de SKU y canal, normalización de fechas (4 formatos + UTC), validación de RUT,
   anonimización, validación de montos, imputación al miembro «No informado» (`-1`).
-- **Destino:** SQL Server (SSMS) o SQLite, a elección en `.env`. Tablas `dim_*`, `fact_ventas` y dos de auditoría
+- **Destino:** SQL Server (SSMS) o SQLite, a elección en `.env`. Tablas `dim_*`, tres tablas de hechos (`fact_ventas`,
+  `fact_inventario`, `fact_campanas`: constelación que comparte dimensiones) y dos de auditoría
   (`auditoria_rechazos`, `auditoria_ejecuciones`).
-- **Organización del trabajo:** un notebook por dimensión (01 Geografía, 02 Producto, 03 Cliente) y uno de integración (04) que
-  carga `dim_fecha`, `dim_canal`, `dim_sucursal` y `fact_ventas`.
+- **Organización del trabajo:** un notebook por dimensión (01 Geografía, 02 Producto, 03 Cliente), uno de integración (04) que
+  carga `dim_fecha`, `dim_canal`, `dim_sucursal` y `fact_ventas`, y dos de la Experiencia 3: 05 (`fact_inventario`) y
+  06 (`dim_campana` y `fact_campanas`, con la regla de atribución de ventas).
+- **Cambio de esquema:** si ya tenías la base creada con la versión anterior, bórrala y vuelve a correr el pipeline
+  (`schema.crear_esquema` solo crea tablas que faltan, no agrega columnas a las existentes).
 
 ## 3. Requisitos
 
@@ -85,7 +89,9 @@ Cada dimensión se procesa por *snapshots* (1 = carga inicial, 2 = cambios poste
 │   ├── 01_dim_geografia.ipynb            # SCD2 · alimenta a Sucursal y Cliente
 │   ├── 02_dim_producto.ipynb             # SCD2 · homologación de SKU
 │   ├── 03_dim_cliente.ipynb              # SCD2 · RUT anonimizado, datos personales
-│   └── 04_fact_ventas_integracion.ipynb  # dim_fecha, dim_canal, dim_sucursal y fact_ventas
+│   ├── 04_fact_ventas_integracion.ipynb  # dim_fecha, dim_canal, dim_sucursal y fact_ventas (con costo y margen)
+│   ├── 05_fact_inventario.ipynb          # foto diaria de stock · alimenta K4 y K6
+│   └── 06_fact_campanas.ipynb            # dim_campana y fact_campanas · atribución de ventas · alimenta K5
 ├── src/
 │   ├── config.py      # lee .env (nunca secretos en el código)
 │   ├── logger.py      # logging a consola y archivo; redacta RUT y correos
@@ -119,6 +125,13 @@ Traen los problemas de calidad que describe el caso, plantados a propósito:
 | `clientes_snapshot_1/2.csv` | RUT inválidos, mismo cliente con RUT escrito distinto, comuna vacía o inexistente; en el snapshot 2 hay clientes que cambian de comuna o segmento y clientes nuevos |
 | `ventas_pos.csv` | fechas en 3 formatos y una imposible, líneas duplicadas, montos negativos, ventas anuladas y devueltas, SKU inexistente, sucursal vacía, venta sin cliente |
 | `ventas_ecommerce.json` | JSON anidado (`items` por orden), fechas UTC, una orden repetida, órdenes anuladas/devueltas, canal escrito de 3 formas |
+| `inventario_wms.csv` | foto diaria producto × sucursal: stock negativo o vacío, fotos repetidas, sucursal inexistente, SKU sin homologar, días sin entrega |
+| `campanas.csv` / `campanas_contactos.csv` | campaña repetida o con presupuesto inválido; contactos repetidos, RUT inválido o sin ficha de cliente, campaña o SKU inexistentes |
+
+**Historia de los datos (sintética):** los datos se generan simulando el negocio día a día (el stock nunca es negativo y no se vende lo
+que no hay). Marzo a julio son estables; del 4 al 24 de agosto se retrasa la reposición de Tecnología, sube el quiebre de stock (K4),
+cae la venta (K1, K2) y la campaña «Semana Tech» tiene muchas respuestas pero pocas compras (K5 bajo 1x). Está documentada en el
+encabezado de `scripts/generar_datos_ejemplo.py` y debe declararse como sintética en cualquier informe.
 
 Si el curso entrega los CSV/JSON oficiales, basta reemplazar los archivos de `data/sample/` (o apuntar `DATA_DIR` a otra carpeta) y ajustar las reglas.
 
@@ -162,7 +175,21 @@ notebooks mantengan la plantilla común y no incluyan credenciales.
 | Victor Navarrete | 02 Dim_Producto |
 | La otra persona entre Cristóbal y Mara | 03 Dim_Cliente |
 | Los tres | 04 Integración |
+| Por definir | 05 Fact_Inventario · 06 Fact_Campañas (Experiencia 3) |
 
 ## 13. Licencia / uso académico
 
 Proyecto académico para el curso IDY1102 (Duoc UC). Datos de ejemplo del caso ficticio DataRetail 360.
+
+## Storytelling y app (Experiencia 3, Actividad 3.2)
+
+`storytelling/` convierte los KPIs del DW en gráficos con mensaje y una narrativa Situación-Complicación-Idea:
+
+```bash
+pip install -r requirements-storytelling.txt
+jupyter notebook storytelling/3_2_2_storytelling_plotly.ipynb   # 3 gráficos Plotly + narrativa SCI
+streamlit run storytelling/app.py                                 # la misma historia, con filtros
+```
+
+Los gráficos, las cifras de los títulos y la narrativa viven en `storytelling/kpis.py` (los usan el notebook y la app), leen la capa Gold
+y se verifican contra los datos (`verificar_historia`). Requiere haber corrido antes `python run_pipeline.py`.

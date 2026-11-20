@@ -35,6 +35,27 @@ def normalizar_sku(serie: pd.Series) -> pd.Series:
     return normalizar_texto(serie, mayusculas=True).str.replace(" ", "", regex=False)
 
 
+def canal_canonico(serie: pd.Series) -> pd.Series:
+    """Lleva las variantes del canal de venta a su valor canónico (consistencia).
+
+    'Tienda física', 'TIENDA FISICA', 'tienda física ' -> 'Tienda física'
+    'E-commerce', 'ecommerce', 'Web'                   -> 'E-commerce'
+    Cualquier otro valor queda como NA (la carga lo manda al miembro «No informado», clave -1)
+    en vez de adivinar un canal.
+    """
+    s = normalizar_texto(serie, mayusculas=True, sin_tildes=True).str.replace(r"[^A-Z]", "", regex=True)
+
+    def _una(v):
+        if pd.isna(v):
+            return pd.NA
+        if v.startswith("TIENDA"):
+            return "Tienda física"
+        if v in {"ECOMMERCE", "WEB"}:
+            return "E-commerce"
+        return pd.NA
+    return s.map(_una).astype("string")
+
+
 # ------------------------------------------------------------------------ Fechas
 def parsear_fechas(serie: pd.Series) -> pd.Series:
     """Convierte fechas en varios formatos a datetime (validez).

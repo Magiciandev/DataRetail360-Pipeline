@@ -2,12 +2,14 @@
 
 Orden (respeta las dependencias entre dimensiones):
     por cada snapshot (1 y 2):  01_dim_geografia → 02_dim_producto → 03_dim_cliente
-    al final:                   04_fact_ventas_integracion
+    luego:                      04_fact_ventas_integracion
+    al final (Experiencia 3):   05_fact_inventario → 06_fact_campanas
 
 Uso:
     python run_pipeline.py                  # snapshots 1 y 2 + integración
     python run_pipeline.py --snapshots 1    # solo el primer snapshot
     python run_pipeline.py --solo 03        # un solo notebook (ej. mientras lo desarrollas)
+    python run_pipeline.py --solo 06        # solo campañas (requiere haber corrido 01 a 05 antes)
 
 Los notebooks ya ejecutados (con sus salidas) quedan en logs/ejecutados/ como evidencia.
 Si un notebook falla, el pipeline SE DETIENE y sale con código 1 (nunca falla en silencio).
@@ -34,6 +36,8 @@ log = get_logger("run_pipeline")
 NOTEBOOKS = RAIZ / "notebooks"
 DIMENSIONES = ["01_dim_geografia", "02_dim_producto", "03_dim_cliente"]
 INTEGRACION = "04_fact_ventas_integracion"
+HECHOS_EXP3 = ["05_fact_inventario", "06_fact_campanas"]   # no dependen del snapshot
+SIN_SNAPSHOT = [INTEGRACION, *HECHOS_EXP3]
 
 
 def ejecutar(nombre: str, snapshot: int | None) -> None:
@@ -71,19 +75,20 @@ def main() -> None:
         raise SystemExit(1)
 
     if args.solo:
-        todos = [*DIMENSIONES, INTEGRACION]
+        todos = [*DIMENSIONES, *SIN_SNAPSHOT]
         elegidos = [n for n in todos if n.startswith(args.solo)]
         if not elegidos:
             log.error("No hay un notebook que empiece con '%s'", args.solo)
             raise SystemExit(1)
         for nombre in elegidos:
-            ejecutar(nombre, None if nombre == INTEGRACION else args.snapshots)
+            ejecutar(nombre, None if nombre in SIN_SNAPSHOT else args.snapshots)
         return
 
     for snapshot in range(1, args.snapshots + 1):
         for nombre in DIMENSIONES:
             ejecutar(nombre, snapshot)
-    ejecutar(INTEGRACION, None)
+    for nombre in SIN_SNAPSHOT:
+        ejecutar(nombre, None)
     log.info("Pipeline completo OK")
 
 
