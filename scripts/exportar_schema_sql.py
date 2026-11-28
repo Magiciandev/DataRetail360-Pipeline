@@ -1,4 +1,4 @@
-"""Genera sql/schema_sqlserver.sql (DDL de SQL Server) a partir de src/schema.py.
+"""Genera sql/schema_sqlserver.sql (DDL de SQL Server) y sql/vistas_bi.sql (vistas de KPIs) a partir del código.
 
 Sirve para revisar o crear las tablas desde SSMS. El pipeline también las crea solo
 (`schema.crear_esquema`), así que este archivo es documentación verificable del modelo físico.
@@ -13,7 +13,7 @@ from sqlalchemy.schema import CreateIndex, CreateTable
 
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ))
-from src import schema  # noqa: E402
+from src import schema, vistas  # noqa: E402
 
 dialecto = mssql.dialect()
 dialecto.server_version_info = (15, 0, 0)   # SQL Server 2019: usa tipos DATE y DATETIME2 nativos
@@ -28,3 +28,7 @@ destino = RAIZ / "sql" / "schema_sqlserver.sql"
 destino.parent.mkdir(exist_ok=True)
 destino.write_text("\n".join(partes), encoding="utf-8")
 print(f"Escrito {destino.relative_to(RAIZ)} ({len(schema.metadata.tables)} tablas)")
+
+destino_vistas = RAIZ / "sql" / "vistas_bi.sql"
+destino_vistas.write_text(vistas.exportar_sql_server(), encoding="utf-8")
+print(f"Escrito {destino_vistas.relative_to(RAIZ)} ({len(vistas.construir_vistas('mssql'))} vistas)")

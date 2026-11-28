@@ -1,0 +1,417 @@
+// =====================================================================================================================
+// DataRetail 360 · Medidas DAX de K1, K2, K4 y K5 para Power BI (DirectQuery sobre SQL Server)
+//
+// Cómo cargarlas (una sola vez):
+//   1. Power BI Desktop → vista «Consulta DAX» (DAX query view) → pegar TODO este archivo.
+//   2. Botón «Actualizar el modelo con los cambios» (Update model with changes). Agrega todas las medidas a la tabla fact_ventas.
+//   3. En la vista Modelo, mover cada medida a su carpeta de visualización (nombre en el comentario de cada bloque).
+//
+// Supuestos del modelo (ver docs/powerbi_directquery.md):
+//   · la tabla de fechas se llama dim_fecha (viene de la vista vw_dim_fecha: trae mes_indice y dia_semana_num);
+//   · relaciones muchos-a-uno desde cada hecho hacia sus dimensiones por las claves *_key;
+//   · no usan funciones de inteligencia de tiempo: son seguras en DirectQuery.
+//
+// Los umbrales deben coincidir con UMBRALES de src/vistas.py. La hoja de validación (sección 8 de la guía) lo comprueba.
+// =====================================================================================================================
+DEFINE
+    // ------------------------------------------------------------------------------------------ Carpeta: Parámetros
+    /// Umbral de alerta de K1: la venta del mes es menor que este porcentaje de la meta (promedio de los 3 meses previos).
+    MEASURE fact_ventas[Umbral K1 alerta] = 0.9
+    /// Umbral de alerta de K2: caída del ticket promedio respecto del mes anterior.
+    MEASURE fact_ventas[Umbral K2 alerta] = -0.05
+    /// Meta de K4: porcentaje máximo de quiebre de stock.
+    MEASURE fact_ventas[Umbral K4 meta] = 5
+    /// Alerta de K4: porcentaje de quiebre sobre el cual se alerta.
+    MEASURE fact_ventas[Umbral K4 alerta] = 10
+    /// Meta de K5: ROAS mínimo.
+    MEASURE fact_ventas[Umbral K5 meta] = 3
+    /// Alerta de K5: ROAS bajo el cual se alerta.
+    MEASURE fact_ventas[Umbral K5 alerta] = 1
+
+    // ------------------------------------------------------------------------------------ Carpeta: K1 y K2 · Base
+    /// Venta neta (sin IVA y sin devoluciones) en el contexto de filtros actual.
+    MEASURE fact_ventas[Venta neta] =
+        CALCULATE ( SUM ( fact_ventas[monto_neto] ), fact_ventas[devolucion] = 0 )
+
+    /// Transacciones distintas (sin devoluciones).
+    MEASURE fact_ventas[Transacciones] =
+        CALCULATE ( DISTINCTCOUNT ( fact_ventas[id_transaccion] ), fact_ventas[devolucion] = 0 )
+
+    /// Ticket promedio = venta neta / transacciones.
+    MEASURE fact_ventas[Ticket promedio] = DIVIDE ( [Venta neta], [Transacciones] )
+
+    /// Índice del mes de referencia: el último mes con ventas dentro de los filtros. En un gráfico mensual es el mes de cada punto.
+    MEASURE fact_ventas[Mes de referencia] =
+        CALCULATE ( MAX ( dim_fecha[mes_indice] ), fact_ventas )
+
+    /// Meta de K1: promedio de la venta neta de los 3 meses previos al mes de referencia. Vacía si falta alguno de los 3 meses.
+    MEASURE fact_ventas[Meta K1] =
+        VAR m = [Mes de referencia]
+        VAR v1 = CALCULATE ( [Venta neta], REMOVEFILTERS ( dim_fecha ), dim_fecha[mes_indice] = m - 1 )
+        VAR v2 = CALCULATE ( [Venta neta], REMOVEFILTERS ( dim_fecha ), dim_fecha[mes_indice] = m - 2 )
+        VAR v3 = CALCULATE ( [Venta neta], REMOVEFILTERS ( dim_fecha ), dim_fecha[mes_indice] = m - 3 )
+        RETURN
+            IF ( NOT ISBLANK ( v1 ) && NOT ISBLANK ( v2 ) && NOT ISBLANK ( v3 ), DIVIDE ( v1 + v2 + v3, 3 ) )
+
+    /// Cumplimiento de K1 = venta neta / meta.
+    MEASURE fact_ventas[Cumplimiento K1] = DIVIDE ( [Venta neta], [Meta K1] )
+
+    /// Estado de K1 según la ficha: Alerta, En observación o Meta.
+    MEASURE fact_ventas[Estado K1] =
+        VAR r = [Cumplimiento K1]
+        RETURN
+            SWITCH (
+                TRUE (),
+                ISBLANK ( r ), "Sin base de comparación",
+                r < [Umbral K1 alerta], "Alerta",
+                r >= 1, "Meta",
+                "En observación"
+            )
+
+    /// Ticket promedio del mes anterior al mes de referencia (se ignoran los filtros de fecha).
+    MEASURE fact_ventas[Ticket del mes anterior] =
+        VAR m = [Mes de referencia]
+        RETURN
+            CALCULATE ( [Ticket promedio], REMOVEFILTERS ( dim_fecha ), dim_fecha[mes_indice] = m - 1 )
+
+    /// Variación del ticket promedio respecto del mes anterior (fracción: -0,13 = -13 %). Vacía si no hay mes anterior.
+    MEASURE fact_ventas[Variación ticket] =
+        VAR previo = [Ticket del mes anterior]
+        RETURN
+            IF ( NOT ISBLANK ( previo ), DIVIDE ( [Ticket promedio], previo ) - 1 )
+
+    /// Estado de K2 según la ficha: Alerta si el ticket cae más de 5 %, Meta si no baja, En observación en el medio.
+    MEASURE fact_ventas[Estado K2] =
+        VAR v = [Variación ticket]
+        RETURN
+            SWITCH (
+                TRUE (),
+                ISBLANK ( v ), "Sin mes anterior",
+                v < [Umbral K2 alerta], "Alerta",
+                v >= 0, "Meta",
+                "En observación"
+            )
+
+    // --------------------------------------------------------------------------------- Carpeta: K1 y K2 · Gráficos
+    /// Venta neta en millones de CLP (serie del gráfico de tendencia de K1).
+    MEASURE fact_ventas[Venta neta (MM)] = DIVIDE ( [Venta neta], 1000000 )
+
+    /// Meta de K1 en millones de CLP (línea discontinua del gráfico).
+    MEASURE fact_ventas[Meta K1 (MM)] = DIVIDE ( [Meta K1], 1000000 )
+
+    /// Umbral de alerta de K1 en millones de CLP: meta × 90 % (línea punteada del gráfico).
+    MEASURE fact_ventas[Alerta K1 (MM)] = DIVIDE ( [Meta K1], 1000000 ) * [Umbral K1 alerta]
+
+    // ------------------------------------------------------------------------------- Carpeta: K1 y K2 · Tarjetas
+    /// K1 · venta neta del mes de referencia, en millones de CLP. Formato sugerido: #,0" MM".
+    MEASURE fact_ventas[K1 · Venta del mes (MM)] =
+        VAR m = [Mes de referencia]
+        RETURN DIVIDE ( CALCULATE ( [Venta neta], dim_fecha[mes_indice] = m ), 1000000 )
+
+    /// K1 · cumplimiento del mes de referencia.
+    MEASURE fact_ventas[K1 · Cumplimiento] =
+        VAR m = [Mes de referencia]
+        RETURN CALCULATE ( [Cumplimiento K1], dim_fecha[mes_indice] = m )
+
+    /// K1 · estado del mes de referencia.
+    MEASURE fact_ventas[K1 · Estado] =
+        VAR m = [Mes de referencia]
+        RETURN CALCULATE ( [Estado K1], dim_fecha[mes_indice] = m )
+
+    /// K1 · texto de la tarjeta, con símbolo y estado escritos.
+    MEASURE fact_ventas[K1 · Detalle] =
+        VAR r = [K1 · Cumplimiento]
+        RETURN
+            IF (
+                ISBLANK ( r ),
+                "Sin base de comparación",
+                IF ( r < 1, "▼ ", "▲ " ) & FORMAT ( ABS ( 1 - r ), "0 %" )
+                    & IF ( r < 1, " bajo la meta · ", " sobre la meta · " ) & [K1 · Estado]
+            )
+
+    /// K1 · color de la franja de la tarjeta según el estado.
+    MEASURE fact_ventas[K1 · Color] =
+        SWITCH ( [K1 · Estado], "Alerta", "#FF7F0E", "Meta", "#0E8C84", "En observación", "#C8860D", "#9AA7B2" )
+
+    /// K1 · título del gráfico de tendencia (el mensaje).
+    MEASURE fact_ventas[K1 · Título del gráfico] =
+        VAR m = [Mes de referencia]
+        VAR r = [K1 · Cumplimiento]
+        VAR mes = CALCULATE ( SELECTEDVALUE ( dim_fecha[nombre_mes] ), dim_fecha[mes_indice] = m )
+        RETURN
+            IF (
+                ISBLANK ( r ),
+                "Venta neta mensual frente a su meta",
+                "En " & LOWER ( mes ) & " la venta neta quedó " & FORMAT ( ABS ( 1 - r ), "0 %" )
+                    & IF ( r < 1, " bajo ", " sobre " ) & "el promedio de los 3 meses previos"
+            )
+
+    /// K2 · ticket promedio del mes de referencia, en miles de CLP. Formato sugerido: $#,0" mil".
+    MEASURE fact_ventas[K2 · Ticket del mes (miles)] =
+        VAR m = [Mes de referencia]
+        RETURN DIVIDE ( CALCULATE ( [Ticket promedio], dim_fecha[mes_indice] = m ), 1000 )
+
+    /// K2 · variación del ticket del mes de referencia.
+    MEASURE fact_ventas[K2 · Variación] =
+        VAR m = [Mes de referencia]
+        RETURN CALCULATE ( [Variación ticket], dim_fecha[mes_indice] = m )
+
+    /// K2 · estado del mes de referencia.
+    MEASURE fact_ventas[K2 · Estado] =
+        VAR m = [Mes de referencia]
+        RETURN CALCULATE ( [Estado K2], dim_fecha[mes_indice] = m )
+
+    /// K2 · texto de la tarjeta.
+    MEASURE fact_ventas[K2 · Detalle] =
+        VAR v = [K2 · Variación]
+        RETURN
+            IF (
+                ISBLANK ( v ),
+                "Sin mes anterior",
+                IF ( v < 0, "▼ ", "▲ " ) & FORMAT ( ABS ( v ), "0 %" ) & " vs mes anterior · " & [K2 · Estado]
+            )
+
+    /// K2 · color de la franja de la tarjeta.
+    MEASURE fact_ventas[K2 · Color] =
+        SWITCH ( [K2 · Estado], "Alerta", "#FF7F0E", "Meta", "#0E8C84", "En observación", "#C8860D", "#9AA7B2" )
+
+    // ---------------------------------------------------------------------------------------------- Carpeta: K4
+    /// Fotos de inventario (producto × sucursal × día) en el contexto actual.
+    MEASURE fact_ventas[Fotos de inventario] = COUNTROWS ( fact_inventario )
+
+    /// Fotos de inventario con stock cero.
+    MEASURE fact_ventas[Fotos en quiebre] = SUM ( fact_inventario[quiebre] )
+
+    /// K4 · porcentaje de quiebre = fotos en quiebre / fotos. Para totales se suman los conteos, no se promedian porcentajes.
+    MEASURE fact_ventas[% Quiebre] =
+        IF ( NOT ISBLANK ( [Fotos de inventario] ), DIVIDE ( [Fotos en quiebre], [Fotos de inventario] ) * 100 )
+
+    /// K4 · porcentaje de quiebre solo de la categoría Tecnología (segunda serie del gráfico semanal).
+    MEASURE fact_ventas[% Quiebre Tecnología] =
+        CALCULATE ( [% Quiebre], dim_producto[categoria] = "Tecnología" )
+
+    /// K4 · estado según la ficha: Meta (≤ 5 %), Alerta (> 10 %) o En observación.
+    MEASURE fact_ventas[Estado K4] =
+        VAR p = [% Quiebre]
+        RETURN
+            SWITCH (
+                TRUE (),
+                ISBLANK ( p ), "Sin datos",
+                p <= [Umbral K4 meta], "Meta",
+                p > [Umbral K4 alerta], "Alerta",
+                "En observación"
+            )
+
+    /// K4 · porcentaje de quiebre del mes de referencia (tarjeta).
+    MEASURE fact_ventas[K4 · % Quiebre del mes] =
+        VAR m = [Mes de referencia]
+        RETURN CALCULATE ( [% Quiebre], dim_fecha[mes_indice] = m )
+
+    /// K4 · estado del mes de referencia.
+    MEASURE fact_ventas[K4 · Estado] =
+        VAR m = [Mes de referencia]
+        RETURN CALCULATE ( [Estado K4], dim_fecha[mes_indice] = m )
+
+    /// K4 · texto de la tarjeta.
+    MEASURE fact_ventas[K4 · Detalle] =
+        VAR p = [K4 · % Quiebre del mes]
+        RETURN
+            IF (
+                ISBLANK ( p ),
+                "Sin datos de inventario",
+                IF ( p > [Umbral K4 meta], "▲ sobre la meta de ", "dentro de la meta de " )
+                    & FORMAT ( [Umbral K4 meta], "0" ) & " % · " & [K4 · Estado]
+            )
+
+    /// K4 · color de la franja de la tarjeta.
+    MEASURE fact_ventas[K4 · Color] =
+        SWITCH ( [K4 · Estado], "Alerta", "#FF7F0E", "Meta", "#0E8C84", "En observación", "#C8860D", "#9AA7B2" )
+
+    /// K4 · título del gráfico semanal: la semana con más quiebre de Tecnología.
+    MEASURE fact_ventas[K4 · Título del gráfico] =
+        VAR semanas = FILTER ( VALUES ( dim_fecha[anio_semana] ), NOT ISBLANK ( CALCULATE ( [% Quiebre], dim_producto[categoria] = "Tecnología" ) ) )
+        VAR pico = TOPN ( 1, semanas, CALCULATE ( [% Quiebre], dim_producto[categoria] = "Tecnología" ), DESC )
+        VAR pct = MAXX ( pico, CALCULATE ( [% Quiebre], dim_producto[categoria] = "Tecnología" ) )
+        VAR semana = MINX ( pico, dim_fecha[anio_semana] )
+        RETURN
+            IF (
+                ISBLANK ( pct ),
+                "Quiebre de stock por semana",
+                "El quiebre de Tecnología llegó a " & FORMAT ( pct, "0" ) & " % en la semana " & semana
+            )
+
+    // ---------------------------------------------------------------------------------------------- Carpeta: K5
+    /// Clientes contactados por las campañas.
+    MEASURE fact_ventas[Contactados] = SUM ( fact_campanas[contactado] )
+
+    /// Clientes que respondieron (lo informa Marketing).
+    MEASURE fact_ventas[Respondieron] = SUM ( fact_campanas[respondio] )
+
+    /// Clientes que compraron el producto promocionado dentro de la ventana de atribución.
+    MEASURE fact_ventas[Compraron] = SUM ( fact_campanas[compro] )
+
+    /// Venta neta atribuida a las campañas.
+    MEASURE fact_ventas[Ingreso atribuido] = SUM ( fact_campanas[monto_venta_atribuida] )
+
+    /// Inversión: costo asignado de las campañas.
+    MEASURE fact_ventas[Inversión] = SUM ( fact_campanas[costo_asignado] )
+
+    /// Porcentaje de contactados que respondió.
+    MEASURE fact_ventas[% Respuesta] =
+        IF ( NOT ISBLANK ( [Contactados] ), DIVIDE ( [Respondieron], [Contactados] ) * 100 )
+
+    /// Porcentaje de contactados que compró.
+    MEASURE fact_ventas[% Conversión] =
+        IF ( NOT ISBLANK ( [Contactados] ), DIVIDE ( [Compraron], [Contactados] ) * 100 )
+
+    /// K5 · ROAS = ingreso atribuido / inversión.
+    MEASURE fact_ventas[ROAS] = DIVIDE ( [Ingreso atribuido], [Inversión] )
+
+    /// K5 · estado según la ficha: Meta (≥ 3x), Alerta (< 1x) o En observación.
+    MEASURE fact_ventas[Estado K5] =
+        VAR r = [ROAS]
+        RETURN
+            SWITCH (
+                TRUE (),
+                ISBLANK ( r ), "Sin datos",
+                r >= [Umbral K5 meta], "Meta",
+                r < [Umbral K5 alerta], "Alerta",
+                "En observación"
+            )
+
+    /// K5 · color de la barra de ROAS según su estado (para formato condicional por valor de campo).
+    MEASURE fact_ventas[K5 · Color de barra] =
+        SWITCH ( [Estado K5], "Alerta", "#FF7F0E", "Meta", "#0E8C84", "En observación", "#C8860D", "#9AA7B2" )
+
+    /// K5 · etiqueta de cada barra: «0,81x · Alerta».
+    MEASURE fact_ventas[K5 · Etiqueta de barra] =
+        IF ( NOT ISBLANK ( [ROAS] ), FORMAT ( [ROAS], "0.00" ) & "x · " & [Estado K5] )
+
+    /// K5 · menor ROAS entre las campañas visibles (tarjeta).
+    MEASURE fact_ventas[K5 · Peor ROAS] =
+        MINX ( FILTER ( VALUES ( dim_campana[nombre_campana] ), NOT ISBLANK ( [ROAS] ) ), [ROAS] )
+
+    /// K5 · nombre de la campaña con menor ROAS.
+    MEASURE fact_ventas[K5 · Campaña con peor ROAS] =
+        VAR t = FILTER ( VALUES ( dim_campana[nombre_campana] ), NOT ISBLANK ( [ROAS] ) )
+        RETURN MINX ( TOPN ( 1, t, [ROAS], ASC ), dim_campana[nombre_campana] )
+
+    /// K5 · estado de la campaña con menor ROAS.
+    MEASURE fact_ventas[K5 · Estado] =
+        VAR r = [K5 · Peor ROAS]
+        RETURN
+            SWITCH (
+                TRUE (),
+                ISBLANK ( r ), "Sin datos",
+                r >= [Umbral K5 meta], "Meta",
+                r < [Umbral K5 alerta], "Alerta",
+                "En observación"
+            )
+
+    /// K5 · texto de la tarjeta.
+    MEASURE fact_ventas[K5 · Detalle] =
+        VAR r = [K5 · Peor ROAS]
+        RETURN
+            IF (
+                ISBLANK ( r ),
+                "Sin campañas en el periodo",
+                [K5 · Campaña con peor ROAS]
+                    & IF ( r < [Umbral K5 alerta], " · ▼ bajo " & FORMAT ( [Umbral K5 alerta], "0" ) & "x · ", " · " )
+                    & [K5 · Estado]
+            )
+
+    /// K5 · color de la franja de la tarjeta.
+    MEASURE fact_ventas[K5 · Color] =
+        SWITCH ( [K5 · Estado], "Alerta", "#FF7F0E", "Meta", "#0E8C84", "En observación", "#C8860D", "#9AA7B2" )
+
+    /// K5 · título del gráfico de campañas (el mensaje).
+    MEASURE fact_ventas[K5 · Título del gráfico] =
+        VAR t = FILTER ( VALUES ( dim_campana[nombre_campana] ), NOT ISBLANK ( [ROAS] ) )
+        VAR peor = TOPN ( 1, t, [ROAS], ASC )
+        VAR mas = TOPN ( 1, t, [% Respuesta], DESC )
+        VAR n_peor = MINX ( peor, dim_campana[nombre_campana] )
+        VAR n_mas = MINX ( mas, dim_campana[nombre_campana] )
+        VAR roas_peor = MINX ( peor, [ROAS] )
+        VAR resp_mas = MAXX ( mas, [% Respuesta] )
+        RETURN
+            IF (
+                ISBLANK ( n_peor ),
+                "ROAS por campaña",
+                IF (
+                    n_peor = n_mas,
+                    n_peor & " respondió más (" & FORMAT ( resp_mas, "0.0" ) & " %) y rindió menos (ROAS " & FORMAT ( roas_peor, "0.00" ) & "x)",
+                    n_peor & " fue la campaña de peor retorno (ROAS " & FORMAT ( roas_peor, "0.00" ) & "x)"
+                )
+            )
+
+    // ------------------------------------------------------------------------------- Carpeta: Venta por categoría
+    /// Porcentaje de la venta neta que representa cada categoría dentro de lo seleccionado.
+    MEASURE fact_ventas[% de la venta neta] =
+        DIVIDE ( [Venta neta], CALCULATE ( [Venta neta], ALLSELECTED ( dim_producto[categoria] ) ) )
+
+    /// V4 · título del gráfico de categorías (el mensaje). Excluye la categoría «NO INFORMADO».
+    MEASURE fact_ventas[V4 · Título del gráfico] =
+        VAR t = FILTER ( VALUES ( dim_producto[categoria] ), NOT ISBLANK ( [Venta neta] ) && dim_producto[categoria] <> "NO INFORMADO" )
+        VAR top = TOPN ( 1, t, [Venta neta], DESC )
+        VAR cat = MINX ( top, dim_producto[categoria] )
+        VAR pct = DIVIDE ( MAXX ( top, [Venta neta] ), SUMX ( t, [Venta neta] ) )
+        RETURN
+            IF ( ISBLANK ( cat ), "Venta neta por categoría", cat & " concentra el " & FORMAT ( pct, "0 %" ) & " de la venta neta del periodo" )
+
+    // -------------------------------------------------------------------------- Carpeta: Validación (DAX frente a SQL)
+    // Estas medidas se usan SOLO en la hoja de validación: comparan cada medida DAX con las vistas SQL, que ya están probadas.
+    // Las vistas vw_kpi_* se cargan sin relaciones. Todas las diferencias deben dar 0 y todos los estados «OK».
+    /// Validación K1: diferencia de venta neta (DAX − SQL), en CLP.
+    MEASURE fact_ventas[Val · Dif venta neta] =
+        VAR mes = SELECTEDVALUE ( vw_kpi_k1_k2_mensual[anio_mes] )
+        RETURN
+            IF ( NOT ISBLANK ( mes ), CALCULATE ( [Venta neta], dim_fecha[anio_mes] = mes ) - SUM ( vw_kpi_k1_k2_mensual[venta_neta] ) )
+
+    /// Validación K1: diferencia de la meta (DAX − SQL), en CLP. Vacía en los primeros meses (sin base).
+    MEASURE fact_ventas[Val · Dif meta K1] =
+        VAR mes = SELECTEDVALUE ( vw_kpi_k1_k2_mensual[anio_mes] )
+        VAR dax = CALCULATE ( [Meta K1], dim_fecha[anio_mes] = mes )
+        VAR sql = SUM ( vw_kpi_k1_k2_mensual[meta_venta] )
+        RETURN
+            IF ( NOT ISBLANK ( mes ), IF ( ISBLANK ( dax ) && ISBLANK ( sql ), 0, dax - sql ) )
+
+    /// Validación K1: ¿el estado DAX coincide con el estado SQL?
+    MEASURE fact_ventas[Val · Estado K1] =
+        VAR mes = SELECTEDVALUE ( vw_kpi_k1_k2_mensual[anio_mes] )
+        VAR dax = CALCULATE ( [Estado K1], dim_fecha[anio_mes] = mes )
+        RETURN
+            IF ( NOT ISBLANK ( mes ), IF ( dax = SELECTEDVALUE ( vw_kpi_k1_k2_mensual[estado_k1] ), "OK", "DIFIERE" ) )
+
+    /// Validación K2: ¿el estado del ticket coincide con el SQL?
+    MEASURE fact_ventas[Val · Estado K2] =
+        VAR mes = SELECTEDVALUE ( vw_kpi_k1_k2_mensual[anio_mes] )
+        VAR dax = CALCULATE ( [Estado K2], dim_fecha[anio_mes] = mes )
+        RETURN
+            IF ( NOT ISBLANK ( mes ), IF ( dax = SELECTEDVALUE ( vw_kpi_k1_k2_mensual[estado_k2] ), "OK", "DIFIERE" ) )
+
+    /// Validación K4: diferencia del porcentaje de quiebre (DAX − SQL) por semana y categoría.
+    MEASURE fact_ventas[Val · Dif % quiebre] =
+        VAR sem = SELECTEDVALUE ( vw_kpi_k4_quiebre_semanal[anio_semana] )
+        VAR cat = SELECTEDVALUE ( vw_kpi_k4_quiebre_semanal[categoria] )
+        RETURN
+            IF (
+                NOT ISBLANK ( sem ) && NOT ISBLANK ( cat ),
+                CALCULATE ( [% Quiebre], dim_fecha[anio_semana] = sem, dim_producto[categoria] = cat ) - SUM ( vw_kpi_k4_quiebre_semanal[pct_quiebre] )
+            )
+
+    /// Validación K5: diferencia del ROAS (DAX − SQL) por campaña.
+    MEASURE fact_ventas[Val · Dif ROAS] =
+        VAR cod = SELECTEDVALUE ( vw_kpi_k5_campanas[codigo_campana] )
+        RETURN
+            IF ( NOT ISBLANK ( cod ), CALCULATE ( [ROAS], dim_campana[codigo_campana] = cod ) - SUM ( vw_kpi_k5_campanas[roas] ) )
+
+    /// Validación K5: ¿el estado DAX coincide con el estado SQL?
+    MEASURE fact_ventas[Val · Estado K5] =
+        VAR cod = SELECTEDVALUE ( vw_kpi_k5_campanas[codigo_campana] )
+        VAR dax = CALCULATE ( [Estado K5], dim_campana[codigo_campana] = cod )
+        RETURN
+            IF ( NOT ISBLANK ( cod ), IF ( dax = SELECTEDVALUE ( vw_kpi_k5_campanas[estado_k5] ), "OK", "DIFIERE" ) )
+
+// La consulta mínima que exige la vista de consulta DAX; no modifica nada.
+EVALUATE
+ROW ( "Medidas listas para agregar al modelo", 1 )

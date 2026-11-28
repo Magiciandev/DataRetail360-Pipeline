@@ -31,6 +31,8 @@ y resuelve el problema central del caso: cifras distintas entre áreas, datos si
 - **Organización del trabajo:** un notebook por dimensión (01 Geografía, 02 Producto, 03 Cliente), uno de integración (04) que
   carga `dim_fecha`, `dim_canal`, `dim_sucursal` y `fact_ventas`, y dos de la Experiencia 3: 05 (`fact_inventario`) y
   06 (`dim_campana` y `fact_campanas`, con la regla de atribución de ventas).
+- **Capa de KPIs:** al terminar, el pipeline crea 4 vistas SQL (`vw_dim_fecha`, `vw_kpi_k1_k2_mensual`, `vw_kpi_k4_quiebre_semanal`,
+  `vw_kpi_k5_campanas`) para Power BI y consultas en lenguaje natural; ver `docs/decisiones_experiencia3.md`.
 - **Cambio de esquema:** si ya tenías la base creada con la versión anterior, bórrala y vuelve a correr el pipeline
   (`schema.crear_esquema` solo crea tablas que faltan, no agrega columnas a las existentes).
 

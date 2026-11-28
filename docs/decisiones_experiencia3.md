@@ -36,12 +36,29 @@ K4 meta ≤ 5 % y alerta > 10 %; K5 meta ≥ 3x y alerta < 1x.
 ## 4. Capa BI (Power BI Desktop sobre SQL Server)
 Reglas de modelado para que el dashboard y el notebook den las mismas cifras:
 - **Relaciones muchos-a-uno** desde cada hecho hacia sus dimensiones por la clave sustituta (`*_key`). Ocultar las claves en la vista de informe.
-- **`dim_fecha` como tabla de fechas** (columna `fecha`). Ordenar `nombre_mes` por `mes`. `dia_semana` no trae número: crear una columna de orden o ordenar con una columna calculada.
+- **Usar `vw_dim_fecha` en lugar de `dim_fecha`** como tabla de fechas (columna `fecha`): agrega `mes_indice` (año×12+mes, para calcular "los 3 meses previos" sin funciones de inteligencia de tiempo) y `dia_semana_num`. Ordenar `nombre_mes` por `mes` y `dia_semana` por `dia_semana_num`.
 - **Ruta ambigua a `dim_geografia`:** se llega por `dim_sucursal` y por `dim_cliente`. Dejar **activa la de sucursal** (la que responde «venta por región») y la de cliente inactiva, o duplicar la dimensión como `dim_geografia_cliente`.
 - **Clientes:** contar con `rut_anonimizado` (no con `cliente_key`, que cambia con el SCD2). Excluir el miembro `-1` («No informado») en K3.
 - **Devoluciones:** todas las medidas de venta filtran `devolucion = 0`.
-- **Datos:** el DW vive en SQL Server de una sola máquina. Para trabajar en equipo, usar modo **Importar** y compartir el `.pbix`, o exportar vistas.
+- **Modo de conexión: DirectQuery** sobre SQL Server. El tablero consulta el DW en cada visual y refleja lo último que cargó el pipeline, sin pasos manuales. El `.pbix` no lleva los datos: se abre donde se llega al SQL Server. Como respaldo para la defensa se guarda una copia pasada a modo Importar.
+- **Alcance de los filtros:** Mes afecta a todos los visuales; **Región** afecta a ventas e inventario (las campañas no tienen sucursal, así que K5 no responde a Región); **Canal** afecta a ventas y campañas (el inventario no tiene canal, así que K4 no responde a Canal). El tablero lo indica con una nota.
+- **Paso a paso y medidas:** `docs/powerbi_directquery.md` (conexión, relaciones, hoja de validación) y `powerbi/medidas_dax.dax` (medidas de K1, K2, K4 y K5, sin funciones de inteligencia de tiempo para que sean seguras en DirectQuery).
 - **Colores:** paleta de la infografía 3.1.4 (navy `#0F2C4C`, teal `#0E8C84`, azul `#1F77B4`, naranja `#FF7F0E`, dorado `#C8860D`, gris `#9AA7B2`). Los estados llevan texto o ▲▼, nunca solo color.
+
+## 4b. Capa de KPIs (vistas SQL)
+`run_pipeline.py` crea al final cuatro vistas (o `python run_pipeline.py --solo vistas`; para SSMS, `sql/vistas_bi.sql`, SQL Server 2016 o superior).
+Sirven para tres cosas: calcular en SQL lo que es frágil en DirectQuery (ventanas), **validar** que el dashboard da las mismas cifras que el notebook
+y ser el **objetivo de las consultas en lenguaje natural (NLQ)**, porque una IA acierta más sobre vistas claras que sobre un esquema en estrella con SCD2.
+
+| Vista | Contenido | Nota |
+|---|---|---|
+| `vw_dim_fecha` | `dim_fecha` + `mes_indice` + `dia_semana_num` | usar como tabla de fechas en Power BI |
+| `vw_kpi_k1_k2_mensual` | K1 venta neta, meta (promedio de los 3 meses previos), `ratio_meta`, `estado_k1`; K2 ticket, variación %, `estado_k2` | nivel compañía, un registro por mes |
+| `vw_kpi_k4_quiebre_semanal` | fotos, fotos en quiebre, `pct_quiebre`, `estado_k4` por semana y categoría | para el total semanal **sumar** `fotos_en_quiebre` y `fotos` y dividir; **no promediar** los porcentajes |
+| `vw_kpi_k5_campanas` | contactados, respondieron, compraron, respuesta %, conversión %, ingreso, inversión, `roas`, `estado_k5` | un registro por campaña |
+
+Los umbrales viven en `src/vistas.py` (`UMBRALES`) y los usan las vistas y `storytelling/kpis.py`: no pueden discrepar. Las pruebas comparan las vistas contra
+cifras calculadas a mano (`tests/test_vistas.py`).
 
 ## 5. Historia de los datos (sintética)
 Marzo a julio estables; del 4 al 24 de agosto se retrasa la reposición de Tecnología: sube el quiebre (K4), cae la venta (K1, K2) y la campaña

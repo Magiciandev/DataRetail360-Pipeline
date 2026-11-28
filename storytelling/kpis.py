@@ -23,15 +23,17 @@ if str(RAIZ) not in sys.path:
 
 from src import db  # noqa: E402
 from src.config import get_settings  # noqa: E402
+from src.vistas import UMBRALES  # noqa: E402
 
 # ------------------------------------------------------------------------------ Diseño
 NAVY, TEAL, AZUL, NARANJA, DORADO, GRIS = "#0F2C4C", "#0E8C84", "#1F77B4", "#FF7F0E", "#C8860D", "#9AA7B2"
 TEXTO = "#33414D"
 
-# Umbrales de la ficha de KPI (provisionales: se calibraron con los datos generados)
-K1_ALERTA = 0.90          # alerta si la venta del mes es < 90 % del promedio de los 3 meses previos
-K4_META, K4_ALERTA = 5.0, 10.0      # % de quiebre: meta ≤ 5, alerta > 10
-K5_META, K5_ALERTA = 3.0, 1.0       # ROAS: meta ≥ 3x, alerta < 1x
+# Umbrales de la ficha de KPI (provisionales: se calibraron con los datos generados). Viven en src/vistas.py, que también
+# los usa para calcular los estados en las vistas SQL: así el dashboard y el notebook no pueden discrepar.
+K1_ALERTA = UMBRALES["k1_alerta"]                                   # alerta si la venta es < 90 % del promedio de los 3 meses previos
+K4_META, K4_ALERTA = UMBRALES["k4_meta"], UMBRALES["k4_alerta"]     # % de quiebre: meta ≤ 5, alerta > 10
+K5_META, K5_ALERTA = UMBRALES["k5_meta"], UMBRALES["k5_alerta"]     # ROAS: meta ≥ 3x, alerta < 1x
 
 MESES_LARGOS = {1: "enero", 2: "febrero", 3: "marzo", 4: "abril", 5: "mayo", 6: "junio", 7: "julio",
                 8: "agosto", 9: "septiembre", 10: "octubre", 11: "noviembre", 12: "diciembre"}

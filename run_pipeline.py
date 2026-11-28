@@ -3,13 +3,15 @@
 Orden (respeta las dependencias entre dimensiones):
     por cada snapshot (1 y 2):  01_dim_geografia → 02_dim_producto → 03_dim_cliente
     luego:                      04_fact_ventas_integracion
-    al final (Experiencia 3):   05_fact_inventario → 06_fact_campanas
+    luego (Experiencia 3):      05_fact_inventario → 06_fact_campanas
+    al final:                   vistas de KPIs para Power BI y NLQ (src/vistas.py)
 
 Uso:
     python run_pipeline.py                  # snapshots 1 y 2 + integración
     python run_pipeline.py --snapshots 1    # solo el primer snapshot
     python run_pipeline.py --solo 03        # un solo notebook (ej. mientras lo desarrollas)
     python run_pipeline.py --solo 06        # solo campañas (requiere haber corrido 01 a 05 antes)
+    python run_pipeline.py --solo vistas    # solo (re)crear las vistas de KPIs
 
 Los notebooks ya ejecutados (con sus salidas) quedan en logs/ejecutados/ como evidencia.
 Si un notebook falla, el pipeline SE DETIENE y sale con código 1 (nunca falla en silencio).
@@ -64,6 +66,13 @@ def ejecutar(nombre: str, snapshot: int | None) -> None:
     log.info("✔ %s OK", etiqueta)
 
 
+def crear_vistas_kpi() -> None:
+    from src import db, vistas
+    log.info("▶ Creando las vistas de KPIs (capa semántica)")
+    nombres = vistas.crear_vistas(db.get_engine(get_settings()))
+    log.info("✔ Vistas OK: %s", ", ".join(nombres))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Ejecuta el pipeline ETL de DataRetail 360")
     parser.add_argument("--snapshots", type=int, default=2, help="cuántos snapshots procesar (por defecto 2)")
@@ -74,6 +83,9 @@ def main() -> None:
         log.error("Falta RUT_SALT en el entorno o en .env (ver .env.example).")
         raise SystemExit(1)
 
+    if args.solo == "vistas":
+        crear_vistas_kpi()
+        return
     if args.solo:
         todos = [*DIMENSIONES, *SIN_SNAPSHOT]
         elegidos = [n for n in todos if n.startswith(args.solo)]
@@ -89,6 +101,7 @@ def main() -> None:
             ejecutar(nombre, snapshot)
     for nombre in SIN_SNAPSHOT:
         ejecutar(nombre, None)
+    crear_vistas_kpi()
     log.info("Pipeline completo OK")
 
 
